@@ -1,0 +1,18 @@
+name: Limpiar videos viejos
+on:
+  schedule: [{cron: '17 9 * * *'}]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  limpiar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Borrar ramas v/* de mas de 14 dias o de prueba
+        env: {GH_TOKEN: '${{ github.token }}', REPO: '${{ github.repository }}'}
+        run: |
+          limite=$(date -u -d '14 days ago' +%s)
+          gh api "repos/$REPO/branches?per_page=100" --paginate -q '.[].name' | grep '^v/' | while read b; do
+            f=$(gh api "repos/$REPO/commits/$b" -q '.commit.committer.date'); t=$(date -u -d "$f" +%s)
+            if [ "$t" -lt "$limite" ] || [[ "$b" == v/prueba* ]]; then echo "borrar $b"; gh api -X DELETE "repos/$REPO/git/refs/heads/$b"; fi
+          done
